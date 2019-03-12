@@ -24,4 +24,5 @@ public:
   void update();
   void update(Orientation &orient);
   void update(Orientation &orient, Orientation &raw);
+  void flush();
 };

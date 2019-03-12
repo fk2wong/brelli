@@ -93,3 +93,9 @@ void IMU::update(Orientation &orient, Orientation &raw)
 {
   updateInternal(orient, raw);
 }
+
+void IMU::flush()
+{
+  // Next time we are requested values, it will act as the first read, and restart the filter
+  _isFirstRead = true;
+}

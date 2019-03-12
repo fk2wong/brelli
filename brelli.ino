@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "IMU.h"
+#include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
 
 #define LOOP_MS (5)
@@ -12,28 +12,30 @@ const int chipSelectPin = 10;
 PhotodiodeArray array1;
 unsigned int integrationTime = 0x4E24;
 
-IMU imu;
+LimitSwitch limits;
 
 void setup(){
   SPI.begin();
   Wire.begin();
   Serial.begin(9600);
   
-  imu.init(0, true, 0.18);
+  limits.init();
+  limits.enableSwitches();
+  
   array1.init(chipSelectPin, frameReadyPin);
 }
 
 void loop(){
-  Orientation current, raw;
+  LimitSwitchState openState, tiltState;
   
-  imu.update(current, raw);
+  limits.pollSwitchStates(openState, tiltState);
 
 #ifdef PRINT_VALUES
   static int readCount = 0;
   if ((readCount % 25) == 0)
   {
-    Serial.print("Roll:\t"); Serial.print(current.roll); Serial.print("\t"); Serial.print(raw.roll);
-    Serial.print("\t\tPitch:\t"); Serial.print(current.pitch); Serial.print("\t"); Serial.print(raw.pitch);
+    Serial.print("Open: "); Serial.print(openState);
+    Serial.print(" Tilt: "); Serial.print(tiltState);
     Serial.println();
     Serial.print("Photodiode array centroid: "); Serial.println(array1.getCentroidReading(integrationTime));
   }
