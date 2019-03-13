@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include "OpMan.h"
 #include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
 
 #define LOOP_MS (5)
 #define PRINT_VALUES
+#define DEBUG
 
 const int frameReadyPin = A3;
 const int chipSelectPin = 10;
@@ -12,31 +14,58 @@ const int chipSelectPin = 10;
 PhotodiodeArray array1;
 unsigned int integrationTime = 0x4E24;
 
-LimitSwitch limits;
+BTDevice btDevice;
+OpMan mOpMan;
 
 void setup(){
   SPI.begin();
   Wire.begin();
   Serial.begin(9600);
-  
-  limits.init();
-  limits.enableSwitches();
-  
+
+  mOpMan.init();
+
+#ifdef DEBUG
+  mOpMan.enableLimitSwitches();
+#endif
+
   array1.init(chipSelectPin, frameReadyPin);
 }
 
 void loop(){
+  BTCommand command;
   LimitSwitchState openState, tiltState;
+
+#ifdef DEBUG
+  mOpMan.pollSwitchStates(openState, tiltState);
+#else
+
+  // Get latest bluetooth command
+  command = btDevice.getCommand();
+
+  // TODO: If the wind exceeds the safe threshold, close
   
-  limits.pollSwitchStates(openState, tiltState);
+  // Close immediately if:
+  // 1. The bluetooth command is BT_COMMAND_CLOSE
+  // 2. Wind sensor exceeds safe threshold (TODO)
+  if (command == BT_COMMAND_CLOSE)
+  {
+    mOpMan.emergencyClose();
+  }
+  else
+  {
+    mOpMan.processState(command);
+  }
+#endif
 
 #ifdef PRINT_VALUES
   static int readCount = 0;
   if ((readCount % 25) == 0)
   {
-    Serial.print("Open: "); Serial.print(openState);
-    Serial.print(" Tilt: "); Serial.print(tiltState);
-    Serial.println();
+    #ifdef DEBUG
+      Serial.print("Open: "); Serial.print(openState);
+      Serial.print(" Tilt: "); Serial.print(tiltState);
+      Serial.println();
+    #endif
     Serial.print("Photodiode array centroid: "); Serial.println(array1.getCentroidReading(integrationTime));
   }
   readCount++;
