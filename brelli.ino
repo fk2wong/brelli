@@ -67,7 +67,6 @@ void loop(){
       Serial.print(" Tilt: "); Serial.print(tiltState);
       Serial.println();
     #endif
-    Serial.print("Photodiode array centroid: "); Serial.println(array1.getCentroidReading(integrationTime));
   }
   readCount++;
 #endif
