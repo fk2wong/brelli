@@ -2,22 +2,39 @@
 
 #include "OpMan.h"
 
+#define TILT_MOTOR_PWM_PIN       (2)
+#define TILT_MOTOR_DIRECTION_PIN (3)
+
+#define BASE_MOTOR_PWM_PIN       (4)
+#define BASE_MOTOR_DIRECTION_PIN (5)
+
+
+#define TILT_MOTOR_OPEN_SPEED       ( 100)
+#define TILT_MOTOR_CLOSE_SPEED      (-100)
+#define TILT_MOTOR_TILT_SPEED       ( 25 )
+#define TILT_MOTOR_STRAIGHTEN_SPEED (-25 )
+#define BASE_MOTOR_CW_SPEED         ( 25 )
+#define BASE_MOTOR_CCW_SPEED        (-25 )
+
 void OpMan::init()
 {
   LimitSwitchState openState, tiltState;
 
   // Initialize limit switches
   _limits.init();
+  
+  // Initialize motors
+  _tiltMotor.init(TILT_MOTOR_PWM_PIN, TILT_MOTOR_DIRECTION_PIN);
+  _baseMotor.init(BASE_MOTOR_PWM_PIN, BASE_MOTOR_DIRECTION_PIN);
 
   // Enable switches, to check our current state
   _limits.enableSwitches();
   _limits.pollSwitchStates(openState, tiltState);  
   
-  // Start closed
+  // Close the umbrella initially, if not already 
   if (openState != LIMIT_SWITCH_MIN)
   {
-    // TODO start tilt motor
-
+    _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
     _currentState = STATE_CLOSING;
   }
   else
@@ -36,19 +53,21 @@ void OpMan::emergencyClose()
 {
   if (_currentState != STATE_CLOSED)
   {
-   // TODO: Stop all motors
+    _tiltMotor.brake();
+    _baseMotor.brake();
 
     // Enable limit switch sensors
     _limits.enableSwitches();
-    
-    // TODO: Set tilt motor
-    
+
+    // Start closing the umbrella
+    _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
     _currentState = STATE_CLOSING;
   }
 }
 
 void OpMan::processState(BTCommand command)
 {
+  // Operate in the current state, with optional new command input
   switch (_currentState)
   {
     case STATE_CLOSED:
@@ -117,10 +136,11 @@ void OpMan::processClosed(BTCommand command)
 {
   if (command == BT_COMMAND_OPEN)
   {
+    // Enable limit switches
     _limits.enableSwitches();
-    
-    // TODO: Set tilt motor
-  
+
+    // Start opening umbrella
+    _tiltMotor.drive(TILT_MOTOR_OPEN_SPEED);
     _currentState = STATE_OPENING;
   }
 }
@@ -136,11 +156,13 @@ void OpMan::processOpeningClosing(bool isOpening)
   if (( isOpening && (openState == LIMIT_SWITCH_MAX)) ||
       (!isOpening && (openState == LIMIT_SWITCH_MIN)))
   {
-    // TODO: Stop tilt motor
+    // Stop motor
+    _tiltMotor.brake();
   
     // Turn off limit switch sensors
     _limits.disableSwitches();
-  
+
+    // After opening, default state is auto/idle
     _currentState = STATE_AUTO_IDLE;
   }
 }
@@ -163,8 +185,8 @@ void OpMan::processAutoRotating(BTCommand command)
 {
   if (command == BT_COMMAND_MANUAL)
   {
-    // TODO: Stop base motor
-    
+    // Stop base motor
+    _baseMotor.brake();
     _currentState = STATE_MANUAL_IDLE;
   }
   // TODO: 
@@ -173,7 +195,9 @@ void OpMan::processAutoRotating(BTCommand command)
 
   _limits.enableSwitches();
   
-  //    start tilt motor
+  //    After finding the correct rotation, drive the tilt axis towards the sun
+  //    TODO: calc direction based on photo arrays
+  //    drive tilt motor
   //    set state to STATE_AUTO_TILTING
   
 }
@@ -184,8 +208,10 @@ void OpMan::processAutoTilting(BTCommand command, bool isStraightening)
   
   if (command == BT_COMMAND_MANUAL)
   {
-    // TODO: Stop tilt motor
+    // Stop base motor
+    _baseMotor.brake();
 
+    // Disable limit switches
     _limits.disableSwitches();
     
     _currentState = STATE_MANUAL_IDLE;
@@ -199,8 +225,10 @@ void OpMan::processAutoTilting(BTCommand command, bool isStraightening)
     if (( isStraightening && (tiltState == LIMIT_SWITCH_MIN)) ||
         (!isStraightening && (tiltState == LIMIT_SWITCH_MAX)))
     {
-        // TODO: Stop tilt motor
+        // Stop tilt motor
+        _tiltMotor.brake();
 
+        // Disable limit switches
         _limits.disableSwitches();
 
         _currentState = STATE_AUTO_IDLE;
@@ -210,35 +238,35 @@ void OpMan::processAutoTilting(BTCommand command, bool isStraightening)
 
 void OpMan::processManualIdle(BTCommand command)
 {
-  if (command == BT_COMMAND_TILT_UP)
+  if (command == BT_COMMAND_STRAIGHTEN)
   {
     _limits.enableSwitches();
     
-    // TODO: Set tilt motor
-
+    // Start tilt motor
+    _tiltMotor.drive(TILT_MOTOR_STRAIGHTEN_SPEED);
     _currentState = STATE_MANUAL_STRAIGHTENING;
   }
-  if (command == BT_COMMAND_TILT_DOWN)
+  else if (command == BT_COMMAND_TILT)
   {
     _limits.enableSwitches();
 
-    // TODO: Set tilt motor
-
+    // Start tilt motor
+    _tiltMotor.drive(TILT_MOTOR_TILT_SPEED);
     _currentState = STATE_MANUAL_TILTING;
   }
-  if (command == BT_COMMAND_ROTATE_CCW)
+  else if (command == BT_COMMAND_ROTATE_CCW)
   {
-    // TODO: Set base motor
-
+    // Start base motor
+    _baseMotor.drive(BASE_MOTOR_CCW_SPEED);
     _currentState = STATE_MANUAL_ROTATING;
   }
-  if (command == BT_COMMAND_ROTATE_CW)
+  else if (command == BT_COMMAND_ROTATE_CW)
   {
-    // TODO: Set base motor
-
+    // Start base motor
+    _baseMotor.drive(BASE_MOTOR_CW_SPEED);
     _currentState = STATE_MANUAL_ROTATING;
   }
-  if (command == BT_COMMAND_AUTO)
+  else if (command == BT_COMMAND_AUTO)
   {
     _currentState = STATE_AUTO_IDLE;
   }
@@ -248,8 +276,8 @@ void OpMan::processManualRotating(BTCommand command)
 {
   if (command == BT_COMMAND_STOP)
   {
-    // TODO: Stop base motor
-
+    // Stop base motor
+    _baseMotor.brake();
     _currentState = STATE_MANUAL_IDLE;
   }
 }
@@ -260,8 +288,8 @@ void OpMan::processManualTilting(BTCommand command, bool isStraightening)
 
   if (command == BT_COMMAND_STOP)
   {
-    // TODO: Stop tilt motor
-
+    // Stop tilt motor
+    _tiltMotor.brake();
     _limits.disableSwitches();
 
     _currentState = STATE_MANUAL_IDLE;
@@ -274,7 +302,8 @@ void OpMan::processManualTilting(BTCommand command, bool isStraightening)
     if (( isStraightening && (tiltState == LIMIT_SWITCH_MIN)) ||
         (!isStraightening && (tiltState == LIMIT_SWITCH_MAX)))
     {
-        // TODO: Stop tilt motor
+        // Stop tilt motor
+        _tiltMotor.brake();
 
         _limits.disableSwitches();
 

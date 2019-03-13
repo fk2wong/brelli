@@ -3,6 +3,7 @@
 #include "OpMan.h"
 #include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
+#include "Motor.h"
 
 #define LOOP_MS (5)
 #define PRINT_VALUES

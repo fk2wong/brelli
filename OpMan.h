@@ -4,6 +4,7 @@
 
 #include "BTDevice.h"
 #include "LimitSwitch.h"
+#include "Motor.h"
 
 typedef enum
 {
@@ -26,6 +27,9 @@ class OpMan
 private:
   OpState     _currentState;
   LimitSwitch _limits;
+
+  Motor _tiltMotor;
+  Motor _baseMotor;
 
   void processManualTilting(BTCommand command, bool isStraightening);
   void processManualRotating(BTCommand command);
