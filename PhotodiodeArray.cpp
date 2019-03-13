@@ -1,10 +1,11 @@
 #include "PhotodiodeArray.h"
 
 PhotodiodeArray::PhotodiodeArray() :
-_settings(SPI_FREQ_DEFAULT, MSBFIRST, SPI_MODE3)
+_settings(SPI_FREQ_DEFAULT, MSBFIRST, SPI_MODE3),
+_readingStarted(false)
 {}
 
-void PhotodiodeArray::init(int chipSelectPin, int frameReadyPin)
+void PhotodiodeArray::init(int16_t chipSelectPin, int16_t frameReadyPin)
 {
   // Configure pins
   _chipSelectPin = chipSelectPin;
@@ -38,12 +39,8 @@ void PhotodiodeArray::init(int chipSelectPin, int frameReadyPin)
   SPI.endTransaction();
 }
 
-// this is a blocking call
-// SI - start integration - NOTE: not start integration long
-// 8 bit readout only
-unsigned int PhotodiodeArray::getCentroidReading(unsigned int integrationTime)
+void PhotodiodeArray::startIntegration(uint16_t integrationTime)
 {
-  // Start integration
   SPI.beginTransaction(_settings);
   digitalWrite(_chipSelectPin, LOW);
 
@@ -54,11 +51,31 @@ unsigned int PhotodiodeArray::getCentroidReading(unsigned int integrationTime)
   digitalWrite(_chipSelectPin, HIGH);
   SPI.endTransaction();
 
+  _readingStarted = true;
+}
 
-  // Wait for frame ready signal
-  // Could probably do a digital pin, used analog read just for sanity
-  while(analogRead(_frameReadyPin) < 600){}
+// -1 = integration started
+// -2 = integration done, frame is not ready
+// >=0 = valid centroid value
+int16_t PhotodiodeArray::getCentroidReading(uint16_t integrationTime, bool startNewFrame)
+{
+  if (!_readingStarted)
+  {
+    startIntegration(integrationTime);
+    return -1;
+  }
 
+  // Check frameReadyPin - threshold of 600, take an average of 5
+  uint16_t frameReadiness = 0;
+  uint16_t numReadings = 5;
+  for (uint16_t it = 0; it < numReadings; it++)
+  {
+    frameReadiness += analogRead(_frameReadyPin);
+  }
+  if ((frameReadiness / numReadings) < 600)
+  {
+    return -2;
+  }
 
   // Start sensor readout - 8 bit resolution
   uint8_t rxBuffer[MLX75306_READOUT_SIZE] = {0x00};
@@ -75,24 +92,30 @@ unsigned int PhotodiodeArray::getCentroidReading(unsigned int integrationTime)
 
   digitalWrite(_chipSelectPin, HIGH);
   SPI.endTransaction();
+  _readingStarted = false;
+  
+  if (startNewFrame)
+  {
+    startIntegration(integrationTime);
+  }
 
   // Debug linear array
+  /*
   for (int i = 0; i < MLX75306_READOUT_SIZE; i++)
   {
     Serial.print( rxBuffer[i]);
     Serial.print(" ");
   }
-  Serial.println();
+  Serial.println();*/
 
-
-  return calculateCentroid(&rxBuffer[MLX75306_READOUT_HEADER_SIZE], (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1));
+  return (int16_t) calculateCentroid(&rxBuffer[MLX75306_READOUT_HEADER_SIZE], (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1));
 }
 
 // Calculate centroid
-unsigned int PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], unsigned int length)
+uint16_t PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], uint16_t length)
 {
-  unsigned long moments = 0;
-  unsigned long area = 0;
+  uint32_t moments = 0;
+  uint32_t area = 0;
   for (uint16_t it = 1; it <= length; it++)
   {
     moments += ((uint16_t) rxBuffer[it - 1]) * it;

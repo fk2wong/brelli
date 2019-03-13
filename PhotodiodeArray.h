@@ -19,14 +19,16 @@ class PhotodiodeArray
 {
     public:
       PhotodiodeArray();
-      void init(int chipSelectPin, int frameReadyPin);
-      unsigned int getCentroidReading(unsigned int integrationTime);
-      
+      void init(int16_t chipSelectPin, int16_t frameReadyPin);
+      int16_t getCentroidReading(uint16_t integrationTime, bool startIntegration);
+      void startIntegration(uint16_t integrationTime);
+
     private:
-      int _frameReadyPin;
-      int _chipSelectPin;
+      int16_t _frameReadyPin;
+      int16_t _chipSelectPin;
       SPISettings _settings;
-	  
-	  unsigned int calculateCentroid(uint8_t rxBuffer[], unsigned int length);
+      bool _readingStarted;
+      
+      uint16_t calculateCentroid(uint8_t rxBuffer[], uint16_t length);
 
 };
