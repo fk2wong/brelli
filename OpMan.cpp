@@ -4,10 +4,27 @@
 
 void OpMan::init()
 {
-    _limits.init();
+  LimitSwitchState openState, tiltState;
 
-    // TODO: determine current state?
+  // Initialize limit switches
+  _limits.init();
+
+  // Enable switches, to check our current state
+  _limits.enableSwitches();
+  _limits.pollSwitchStates(openState, tiltState);  
+  
+  // Start closed
+  if (openState != LIMIT_SWITCH_MIN)
+  {
+    // TODO start tilt motor
+
+    _currentState = STATE_CLOSING;
+  }
+  else
+  {
+    _limits.disableSwitches();
     _currentState = STATE_CLOSED;
+  }
 }
 
 OpState OpMan::getCurrentState()
