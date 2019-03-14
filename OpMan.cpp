@@ -2,12 +2,11 @@
 
 #include "OpMan.h"
 
-#define TILT_MOTOR_PWM_PIN       (2)
-#define TILT_MOTOR_DIRECTION_PIN (3)
+#define BASE_MOTOR_DIRECTION_PIN (2)
+#define BASE_MOTOR_PWM_PIN       (3)
 
-#define BASE_MOTOR_PWM_PIN       (4)
-#define BASE_MOTOR_DIRECTION_PIN (5)
-
+#define TILT_MOTOR_DIRECTION_PIN (4)
+#define TILT_MOTOR_PWM_PIN       (5)
 
 #define TILT_MOTOR_OPEN_SPEED       ( 100)
 #define TILT_MOTOR_CLOSE_SPEED      (-100)
