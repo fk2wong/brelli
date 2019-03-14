@@ -10,8 +10,8 @@
 
 #define TILT_MOTOR_OPEN_SPEED       ( 100)
 #define TILT_MOTOR_CLOSE_SPEED      (-100)
-#define TILT_MOTOR_TILT_SPEED       ( 25 )
-#define TILT_MOTOR_STRAIGHTEN_SPEED (-25 )
+#define TILT_MOTOR_TILT_SPEED       ( 30 )
+#define TILT_MOTOR_STRAIGHTEN_SPEED (-30 )
 #define BASE_MOTOR_CW_SPEED         ( 25 )
 #define BASE_MOTOR_CCW_SPEED        (-25 )
 
@@ -30,35 +30,35 @@ void OpMan::init()
   _limits.enableSwitches();
   _limits.pollSwitchStates(openState, tiltState, 1);  
 
-  //////////
-  while(1)
-  {
-      static int state = -1;
-      _limits.pollSwitchStates(openState, tiltState); 
-
-      if (tiltState != state)
-      {
-        Serial.println(tiltState);
-        Serial.print("Last value: "); Serial.println(_limits.getLastValue());
-        state = tiltState;
-      }
-//      Serial.print("Open: "); Serial.print(openState);
-//      Serial.print(" Tilt: "); Serial.print(tiltState);
-//      Serial.println(); 
-      delay(5);
-  }
-  ///////////
+//  //////////
+//  while(1)
+//  {
+//      static int state = -1;
+//      _limits.pollSwitchStates(openState, tiltState); 
+//
+//      if (tiltState != state)
+//      {
+//        Serial.println(tiltState);
+//        Serial.print("Last value: "); Serial.println(_limits.getLastValue());
+//        state = tiltState;
+//      }
+////      Serial.print("Open: "); Serial.print(openState);
+////      Serial.print(" Tilt: "); Serial.print(tiltState);
+////      Serial.println(); 
+//      delay(5);
+//  }
+//  ///////////
   
   // Close the umbrella initially, if not already 
   if (openState != LIMIT_SWITCH_MIN)
   {
     _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
-    _currentState = STATE_CLOSING;
+    this->setState(STATE_CLOSING);
   }
   else
   {
     _limits.disableSwitches();
-    _currentState = STATE_CLOSED;
+    this->setState(STATE_CLOSED);
   }
 }
 
@@ -79,7 +79,7 @@ void OpMan::emergencyClose()
 
     // Start closing the umbrella
     _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
-    _currentState = STATE_CLOSING;
+    this->setState(STATE_CLOSING);
   }
 }
 
@@ -159,7 +159,7 @@ void OpMan::processClosed(BTCommand command)
 
     // Start opening umbrella
     _tiltMotor.drive(TILT_MOTOR_OPEN_SPEED);
-    _currentState = STATE_OPENING;
+    this->setState(STATE_OPENING);
   }
 }
 
@@ -180,8 +180,15 @@ void OpMan::processOpeningClosing(bool isOpening)
     // Turn off limit switch sensors
     _limits.disableSwitches();
 
-    // After opening, default state is auto/idle
-    _currentState = STATE_AUTO_IDLE;
+    // After opening, default state is manual/idle
+    if (isOpening)
+    {
+      this->setState(STATE_MANUAL_IDLE);
+    }
+    else
+    {
+      this->setState(STATE_CLOSED);
+    }
   }
 }
 
@@ -189,7 +196,7 @@ void OpMan::processAutoIdle(BTCommand command)
 {
   if (command == BT_COMMAND_MANUAL)
   {
-    _currentState = STATE_MANUAL_IDLE;
+    this->setState(STATE_MANUAL_IDLE);
   }
   // TODO: 
   // Else if any photodiode arrays are past threshold
@@ -205,7 +212,7 @@ void OpMan::processAutoRotating(BTCommand command)
   {
     // Stop base motor
     _baseMotor.brake();
-    _currentState = STATE_MANUAL_IDLE;
+    this->setState(STATE_MANUAL_IDLE);
   }
   // TODO: 
   // Else if photodiode array1 is within threshold
@@ -231,8 +238,7 @@ void OpMan::processAutoTilting(BTCommand command, bool isStraightening)
 
     // Disable limit switches
     _limits.disableSwitches();
-    
-    _currentState = STATE_MANUAL_IDLE;
+    this->setState(STATE_MANUAL_IDLE);
   }
   else
   {
@@ -248,8 +254,7 @@ void OpMan::processAutoTilting(BTCommand command, bool isStraightening)
 
         // Disable limit switches
         _limits.disableSwitches();
-
-        _currentState = STATE_AUTO_IDLE;
+        this->setState(STATE_AUTO_IDLE);
     }
   }
 }
@@ -262,7 +267,7 @@ void OpMan::processManualIdle(BTCommand command)
     
     // Start tilt motor
     _tiltMotor.drive(TILT_MOTOR_STRAIGHTEN_SPEED);
-    _currentState = STATE_MANUAL_STRAIGHTENING;
+    this->setState(STATE_MANUAL_STRAIGHTENING);
   }
   else if (command == BT_COMMAND_TILT)
   {
@@ -270,23 +275,23 @@ void OpMan::processManualIdle(BTCommand command)
 
     // Start tilt motor
     _tiltMotor.drive(TILT_MOTOR_TILT_SPEED);
-    _currentState = STATE_MANUAL_TILTING;
+    this->setState(STATE_MANUAL_TILTING);
   }
   else if (command == BT_COMMAND_ROTATE_CCW)
   {
     // Start base motor
     _baseMotor.drive(BASE_MOTOR_CCW_SPEED);
-    _currentState = STATE_MANUAL_ROTATING;
+    this->setState(STATE_MANUAL_ROTATING);
   }
   else if (command == BT_COMMAND_ROTATE_CW)
   {
     // Start base motor
     _baseMotor.drive(BASE_MOTOR_CW_SPEED);
-    _currentState = STATE_MANUAL_ROTATING;
+    this->setState(STATE_MANUAL_ROTATING);
   }
   else if (command == BT_COMMAND_AUTO)
   {
-    _currentState = STATE_AUTO_IDLE;
+    this->setState(STATE_AUTO_IDLE);
   }
 }
 
@@ -296,7 +301,7 @@ void OpMan::processManualRotating(BTCommand command)
   {
     // Stop base motor
     _baseMotor.brake();
-    _currentState = STATE_MANUAL_IDLE;
+    this->setState(STATE_MANUAL_IDLE);
   }
 }
 
@@ -310,7 +315,7 @@ void OpMan::processManualTilting(BTCommand command, bool isStraightening)
     _tiltMotor.brake();
     _limits.disableSwitches();
 
-    _currentState = STATE_MANUAL_IDLE;
+    this->setState(STATE_MANUAL_IDLE);
   }
   else
   {
@@ -325,7 +330,7 @@ void OpMan::processManualTilting(BTCommand command, bool isStraightening)
 
         _limits.disableSwitches();
 
-        _currentState = STATE_MANUAL_IDLE;
+        this->setState(STATE_MANUAL_IDLE);
     }
   }
 }
@@ -345,4 +350,13 @@ void OpMan::pollSwitchStates(LimitSwitchState &openState, LimitSwitchState &tilt
 void OpMan::disableLimitSwitches()
 {
   _limits.disableSwitches();
+}
+
+void OpMan::setState(OpState newState)
+{
+  if (_currentState != newState)
+  {
+    _currentState = newState;
+    Serial.print("State: "); Serial.println(_currentState);
+  }
 }
