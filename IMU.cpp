@@ -34,10 +34,12 @@ void IMU::updateInternal(Orientation &orient, Orientation &raw)
   double accX, accY, accZ;
   double pitchAxis, rollAxis, yawAxis;
   Orientation newRaw;
+  int err;
   
-  while(I2c.read(MPU6050_ADDR(_addr0bit), MPU6050_ACCEL_XOUT_H, 6) != 0 )
+  while((err = I2c.read(MPU6050_ADDR(_addr0bit), MPU6050_ACCEL_XOUT_H, 6)) != 0 )
   {
-    Serial.println("I2C READ FAIL!");
+    Serial.print("I2C READ FAIL! Err:");
+    Serial.println(err);
   }
 
   accX = (int16_t) I2c.receive()<<8 | I2c.receive();  // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)     

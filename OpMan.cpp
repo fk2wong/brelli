@@ -10,8 +10,8 @@
 
 #define TILT_MOTOR_OPEN_SPEED       ( 100)
 #define TILT_MOTOR_CLOSE_SPEED      (-100)
-#define TILT_MOTOR_TILT_SPEED       ( 30 )
-#define TILT_MOTOR_STRAIGHTEN_SPEED (-30 )
+#define TILT_MOTOR_TILT_SPEED       ( 35 )
+#define TILT_MOTOR_STRAIGHTEN_SPEED (-35 )
 #define BASE_MOTOR_CW_SPEED         ( 25 )
 #define BASE_MOTOR_CCW_SPEED        (-25 )
 
@@ -60,6 +60,8 @@ void OpMan::init()
     _limits.disableSwitches();
     this->setState(STATE_CLOSED);
   }
+
+  _wasInAutoMode = false;
 }
 
 OpState OpMan::getCurrentState()
@@ -69,6 +71,8 @@ OpState OpMan::getCurrentState()
 
 void OpMan::emergencyClose()
 {
+  LimitSwitchState openState, tiltState;
+  
   if (_currentState != STATE_CLOSED)
   {
     _tiltMotor.brake();
@@ -77,9 +81,21 @@ void OpMan::emergencyClose()
     // Enable limit switch sensors
     _limits.enableSwitches();
 
-    // Start closing the umbrella
-    _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
-    this->setState(STATE_CLOSING);
+    // Read if we're tilted
+    _limits.pollSwitchStates(openState, tiltState, 0);
+
+    // If tilted, then we're closing from tilt
+    if (tiltState != LIMIT_SWITCH_MIN)
+    {
+      _tiltMotor.drive(TILT_MOTOR_STRAIGHTEN_SPEED);
+      this->setState(STATE_CLOSING_FROM_TILT);
+    }
+    else
+    {
+      // Start closing the umbrella
+      _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
+      this->setState(STATE_CLOSING);
+    }
   }
 }
 
@@ -95,12 +111,12 @@ void OpMan::processState(BTCommand command)
     }
     case STATE_OPENING:
     {
-      processOpeningClosing(true);
+      processOpeningClosing(command, true);
       break;
     }
     case STATE_CLOSING:
     {
-      processOpeningClosing(false);
+      processOpeningClosing(command, false);
       break;
     }
     case STATE_AUTO_IDLE:
@@ -143,6 +159,11 @@ void OpMan::processState(BTCommand command)
       processManualTilting(command, true);
       break;
     }
+    case STATE_CLOSING_FROM_TILT:
+    {
+      processClosingFromTilt();
+      break;
+    }
     default:
     {
       Serial.println("Invalid state");
@@ -163,9 +184,20 @@ void OpMan::processClosed(BTCommand command)
   }
 }
 
-void OpMan::processOpeningClosing(bool isOpening)
+void OpMan::processOpeningClosing(BTCommand command, bool isOpening)
 {
   LimitSwitchState openState, tiltState;
+
+  if (isOpening && (command == BT_COMMAND_CLOSE))
+  {
+    _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
+    this->setState(STATE_CLOSING);
+  }
+  else if (!isOpening && (command == BT_COMMAND_OPEN))
+  {
+    _tiltMotor.drive(TILT_MOTOR_OPEN_SPEED);
+    this->setState(STATE_OPENING);
+  }
 
   // Check if we reached the open limit
   _limits.pollSwitchStates(openState, tiltState);
@@ -183,7 +215,7 @@ void OpMan::processOpeningClosing(bool isOpening)
     // After opening, default state is manual/idle
     if (isOpening)
     {
-      this->setState(STATE_MANUAL_IDLE);
+      this->setState(_wasInAutoMode ? STATE_AUTO_IDLE : STATE_MANUAL_IDLE);
     }
     else
     {
@@ -335,6 +367,24 @@ void OpMan::processManualTilting(BTCommand command, bool isStraightening)
   }
 }
 
+void OpMan::processClosingFromTilt()
+{
+  LimitSwitchState openState, tiltState;
+ 
+  _limits.pollSwitchStates(openState, tiltState);
+
+  // If we reached the tilt limit, stop
+  if (tiltState == LIMIT_SWITCH_MIN)
+  {
+      // Stop tilt motor
+      _tiltMotor.brake();
+
+      // Close normally
+      _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
+      this->setState(STATE_CLOSING);
+  }
+}
+
 
 // For Debugging:
 void OpMan::enableLimitSwitches()
@@ -358,5 +408,13 @@ void OpMan::setState(OpState newState)
   {
     _currentState = newState;
     Serial.print("State: "); Serial.println(_currentState);
+
+    if (_currentState == STATE_MANUAL_IDLE){
+      _wasInAutoMode = false;
+    }
+    else if (_currentState == STATE_AUTO_IDLE)
+    {
+      _wasInAutoMode = true;
+    }
   }
 }

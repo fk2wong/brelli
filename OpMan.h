@@ -18,7 +18,8 @@ typedef enum
   STATE_MANUAL_IDLE = 7,
   STATE_MANUAL_ROTATING = 8,
   STATE_MANUAL_TILTING = 9,
-  STATE_MANUAL_STRAIGHTENING = 10
+  STATE_MANUAL_STRAIGHTENING = 10,
+  STATE_CLOSING_FROM_TILT = 11,
 } OpState;
 
 
@@ -31,14 +32,17 @@ private:
   Motor _tiltMotor;
   Motor _baseMotor;
 
+  bool  _wasInAutoMode;
+
   void processManualTilting(BTCommand command, bool isStraightening);
   void processManualRotating(BTCommand command);
   void processManualIdle(BTCommand command);
   void processAutoTilting(BTCommand command, bool isStraightening);
   void processAutoRotating(BTCommand command);
   void processAutoIdle(BTCommand command);
-  void processOpeningClosing(bool isOpening);
+  void processOpeningClosing(BTCommand command, bool isOpening);
   void processClosed(BTCommand command);
+  void processClosingFromTilt();
 
 public:
   void init();
