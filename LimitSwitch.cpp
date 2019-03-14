@@ -6,11 +6,11 @@
 #define PRINT_IMU_VALUES
 
 // TODO change these values
-#define OPEN_ROLL_MIN (20.0)
-#define OPEN_ROLL_MAX (70.0)
+#define OPEN_ROLL_OPEN_THRESHOLD (108.3) // 108.3
+#define OPEN_ROLL_CLOSED_THRESHOLD (168.0) // 169.3
 
-#define TILT_ROLL_MIN (5)
-#define TILT_ROLL_MAX (25)
+#define TILT_ROLL_MAX_TILT (-27.0)  // -34.4
+#define TILT_ROLL_STRAIGHT_THRESHOLD (1) // 1.9
 
 typedef struct IMUConfig
 {
@@ -20,8 +20,8 @@ typedef struct IMUConfig
 } IMUConfig;
 
 IMUConfig imuConfigs[] = {
-  [LIMIT_SWITCH_OPEN] = {0, true, 0.18},
-  [LIMIT_SWITCH_TILT] = {1, true, 0.18},
+  [LIMIT_SWITCH_OPEN] = {1, true, 0.05},
+  [LIMIT_SWITCH_TILT] = {0, true, 0.05},
 };
 
 void LimitSwitch::init()
@@ -69,33 +69,30 @@ void LimitSwitch::pollSwitchStates(LimitSwitchState &openState, LimitSwitchState
   _tiltIMU.update(tiltOrient);
 
   // Check open state
-  
-  if (openOrient.roll > OPEN_ROLL_MAX)
+
+  if (tiltOrient.roll < TILT_ROLL_STRAIGHT_THRESHOLD)
   {
-    // Umbrella is fully open
+    // If we're tilting, then we're already open
     openState = LIMIT_SWITCH_MAX;
 
-    // Check tilt state
-    if (tiltOrient.roll < TILT_ROLL_MIN)
-    {
-      tiltState = LIMIT_SWITCH_MIN;
-    }
-    else if (tiltOrient.roll > TILT_ROLL_MAX)
-    {
-      tiltState = LIMIT_SWITCH_INTERMEDIATE;
-    }
-    else
-    {
-      tiltState = LIMIT_SWITCH_MAX;
-    }
+    tiltState = (tiltOrient.roll > TILT_ROLL_MAX_TILT) ? LIMIT_SWITCH_INTERMEDIATE : LIMIT_SWITCH_MAX;
   }
   else
   {
-    // Check if the umbrella is slightly open or completely closed
-    openState = (openOrient.roll < OPEN_ROLL_MIN) ? LIMIT_SWITCH_MIN : LIMIT_SWITCH_INTERMEDIATE;
-
-    // The umbrella is not fully opened, so the tilt must be at 0
     tiltState = LIMIT_SWITCH_MIN;
+
+    if (openOrient.roll > OPEN_ROLL_CLOSED_THRESHOLD)
+    {
+      openState = LIMIT_SWITCH_MIN;
+    }
+    else if (openOrient.roll < OPEN_ROLL_OPEN_THRESHOLD)
+    {
+      openState = LIMIT_SWITCH_MAX;
+    }
+    else
+    {
+      openState = LIMIT_SWITCH_INTERMEDIATE;
+    }
   }
 
 #ifdef PRINT_IMU_VALUES
