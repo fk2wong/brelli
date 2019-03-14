@@ -14,12 +14,13 @@ IMU::IMU()
 {
 }
 
-void IMU::init(uint8_t addr0bit, bool restrictPitch, float filterAlpha)
-{
-  _alpha         = filterAlpha;
+void IMU::init(uint8_t addr0bit, bool restrictPitch, float filterAlpha, float filterBeta, float estPollTimeSec)
+{ 
   _addr0bit      = addr0bit;
   _restrictPitch = restrictPitch;
-  _isFirstRead   = true;
+
+  _pitchFilter.init(filterAlpha, filterBeta, estPollTimeSec);
+  _rollFilter.init(filterAlpha, filterBeta, estPollTimeSec);
   
   Wire.beginTransmission(MPU6050_ADDR(_addr0bit));
   Wire.write(MPU6050_PWR_MGMT_1);  // PWR_MGMT_1 register
@@ -31,7 +32,7 @@ void IMU::updateInternal(Orientation &orient, Orientation &raw)
 {
   double accX, accY, accZ;
   double pitchAxis, rollAxis, yawAxis;
-  Orientation updated;
+  Orientation newRaw;
   
   Wire.beginTransmission(MPU6050_ADDR(_addr0bit));
   Wire.write(MPU6050_ACCEL_XOUT_H);  // starting with register 0x3B (ACCEL_XOUT_H)
@@ -44,35 +45,20 @@ void IMU::updateInternal(Orientation &orient, Orientation &raw)
 
   if (_restrictPitch)
   {
-//    updated.roll  = atan2(accY, accZ) * RAD_TO_DEG;
-//    updated.pitch = atan(-accX / sqrt(accY * accY + accZ * accZ)) * RAD_TO_DEG;
-
-    updated.roll  = atan2(accX, accY) * RAD_TO_DEG;
-    updated.pitch = atan(-accZ / sqrt(accY * accY + accX * accX)) * RAD_TO_DEG;
+    newRaw.roll  = atan2(accX, accY) * RAD_TO_DEG;
+    newRaw.pitch = atan(-accZ / sqrt(accY * accY + accX * accX)) * RAD_TO_DEG;
   }
   else
   {
-    updated.roll  = atan(accY / sqrt(accX * accX + accZ * accZ)) * RAD_TO_DEG;
-    updated.pitch = atan2(-accX, accZ) * RAD_TO_DEG;
+    newRaw.roll  = atan(accY / sqrt(accX * accX + accZ * accZ)) * RAD_TO_DEG;
+    newRaw.pitch = atan2(-accX, accZ) * RAD_TO_DEG;
   }
 
-  // Output the latest filtered reading
-  if (_isFirstRead)
-  {
-    orient = updated;
-    _isFirstRead = false;
-  }
-  else
-  {
-    orient.roll  = _lastOrient.roll  * (1 - _alpha) + updated.roll  * _alpha;
-    orient.pitch = _lastOrient.pitch * (1 - _alpha) + updated.pitch * _alpha;
-  }
+  // Process filters, output
+  orient.pitch  = _pitchFilter.processValue(newRaw.pitch);
+  orient.roll = _rollFilter.processValue(newRaw.roll);
 
-
-  raw = updated;
-
-  // Save new values
-  _lastOrient = orient;
+  raw = newRaw;
 }
 
 void IMU::update()
@@ -80,7 +66,7 @@ void IMU::update()
   Orientation unused;
 
   updateInternal(unused, unused);
-}
+} 
 
 void IMU::update(Orientation &orient)
 {
@@ -96,6 +82,6 @@ void IMU::update(Orientation &orient, Orientation &raw)
 
 void IMU::flush()
 {
-  // Next time we are requested values, it will act as the first read, and restart the filter
-  _isFirstRead = true;
+  _rollFilter.flush();
+  _pitchFilter.flush();
 }

@@ -28,7 +28,26 @@ void OpMan::init()
 
   // Enable switches, to check our current state
   _limits.enableSwitches();
-  _limits.pollSwitchStates(openState, tiltState);  
+  _limits.pollSwitchStates(openState, tiltState, 1);  
+
+  //////////
+  while(1)
+  {
+      static int state = -1;
+      _limits.pollSwitchStates(openState, tiltState); 
+
+      if (openState != state)
+      {
+        Serial.println(openState);
+        Serial.print("Last value: "); Serial.println(_limits.getLastValue());
+        state = openState;
+      }
+//      Serial.print("Open: "); Serial.print(openState);
+//      Serial.print(" Tilt: "); Serial.print(tiltState);
+//      Serial.println(); 
+      delay(5);
+  }
+  ///////////
   
   // Close the umbrella initially, if not already 
   if (openState != LIMIT_SWITCH_MIN)
