@@ -36,11 +36,11 @@ void OpMan::init()
       static int state = -1;
       _limits.pollSwitchStates(openState, tiltState); 
 
-      if (openState != state)
+      if (tiltState != state)
       {
-        Serial.println(openState);
+        Serial.println(tiltState);
         Serial.print("Last value: "); Serial.println(_limits.getLastValue());
-        state = openState;
+        state = tiltState;
       }
 //      Serial.print("Open: "); Serial.print(openState);
 //      Serial.print(" Tilt: "); Serial.print(tiltState);

@@ -124,7 +124,7 @@ void LimitSwitch::pollSwitchStates(LimitSwitchState &openState, LimitSwitchState
   }
   else if (tiltOrient.roll < tilt_maxTiltThreshold)
   {
-    tiltState = LIMIT_SWITCH_MIN;
+    tiltState = LIMIT_SWITCH_MAX;
   }
   else
   {

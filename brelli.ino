@@ -1,9 +1,9 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include "OpMan.h"
 #include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
 #include "Motor.h"
+#include <I2C.h>
 
 #define LOOP_MS (5)
 #define PRINT_VALUES
@@ -20,7 +20,8 @@ OpMan mOpMan;
 
 void setup(){
   SPI.begin();
-  Wire.begin();
+  I2c.begin();
+  I2c.timeOut(10);
   Serial.begin(9600);
 
   mOpMan.init();

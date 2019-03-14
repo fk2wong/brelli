@@ -1,5 +1,5 @@
 #include "IMU.h"
-#include <Wire.h>
+#include <I2C.h>
 #include <math.h>
 #include <Arduino.h>
 
@@ -22,10 +22,11 @@ void IMU::init(uint8_t addr0bit, bool restrictPitch, float filterAlpha, float fi
   _pitchFilter.init(filterAlpha, filterBeta, estPollTimeSec);
   _rollFilter.init(filterAlpha, filterBeta, estPollTimeSec);
   
-  Wire.beginTransmission(MPU6050_ADDR(_addr0bit));
-  Wire.write(MPU6050_PWR_MGMT_1);  // PWR_MGMT_1 register
-  Wire.write(0);     // set to zero (wakes up the MPU-6050)
-  Wire.endTransmission(true);
+  while (I2c.write(MPU6050_ADDR(_addr0bit), MPU6050_PWR_MGMT_1, 0) != 0)
+  {
+    Serial.println("I2C WRITE FAIL!");
+  }
+  //Wire.endTransmission(true);
 }
 
 void IMU::updateInternal(Orientation &orient, Orientation &raw)
@@ -34,14 +35,14 @@ void IMU::updateInternal(Orientation &orient, Orientation &raw)
   double pitchAxis, rollAxis, yawAxis;
   Orientation newRaw;
   
-  Wire.beginTransmission(MPU6050_ADDR(_addr0bit));
-  Wire.write(MPU6050_ACCEL_XOUT_H);  // starting with register 0x3B (ACCEL_XOUT_H)
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU6050_ADDR(_addr0bit),6,true);  // request a total of 6 registers
-  
-  accX = (int16_t) Wire.read()<<8 | Wire.read();  // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)     
-  accY = (int16_t) Wire.read()<<8 | Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
-  accZ = (int16_t) Wire.read()<<8 | Wire.read();  // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
+  while(I2c.read(MPU6050_ADDR(_addr0bit), MPU6050_ACCEL_XOUT_H, 6) != 0 )
+  {
+    Serial.println("I2C READ FAIL!");
+  }
+
+  accX = (int16_t) I2c.receive()<<8 | I2c.receive();  // 0x3B (ACCEL_XOUT_H) & 0x3C (ACCEL_XOUT_L)     
+  accY = (int16_t) I2c.receive()<<8 | I2c.receive();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+  accZ = (int16_t) I2c.receive()<<8 | I2c.receive();  // 0x3F (ACCEL_ZOUT_H) & 0x40 (ACCEL_ZOUT_L)
 
   if (_restrictPitch)
   {
