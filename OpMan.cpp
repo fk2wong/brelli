@@ -50,7 +50,14 @@ void OpMan::init()
 //  ///////////
   
   // Close the umbrella initially, if not already 
-  if (openState != LIMIT_SWITCH_MIN)
+  
+  // If tilted, then we're closing from tilt
+  if (tiltState != LIMIT_SWITCH_MIN)
+  {
+    _tiltMotor.drive(TILT_MOTOR_STRAIGHTEN_SPEED);
+    this->setState(STATE_CLOSING_FROM_TILT);
+  }
+  else if (openState != LIMIT_SWITCH_MIN)
   {
     _tiltMotor.drive(TILT_MOTOR_CLOSE_SPEED);
     this->setState(STATE_CLOSING);

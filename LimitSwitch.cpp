@@ -10,9 +10,9 @@
 #define OPEN_ROLL_CLOSED_THRESHOLD (164.0) // 169.3
 #define OPEN_ROLL_HYSTERESIS       (5)
 
-#define TILT_ROLL_MAX_TILT           (-30.0)  // -34.4
+#define TILT_ROLL_MAX_TILT           (-34.0)  // -34.4
 #define TILT_ROLL_STRAIGHT_THRESHOLD (1) // 1.9
-#define TILT_ROLL_HYSTERESIS         (5)
+#define TILT_ROLL_HYSTERESIS         (2)
 
 #define FILTER_ALPHA (0.01) //0.01
 #define FILTER_BETA  (0.00005) //0.00005
