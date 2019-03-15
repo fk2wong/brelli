@@ -2,11 +2,16 @@
 #include "OpMan.h"
 #include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
+#include "WindSense.h"
 #include "Motor.h"
 #include <I2C.h>
 
 #define LOOP_MS (5)
 #define PRINT_VALUES
+
+#define WIND_SENSE_PIN (A0)
+#define WIND_SPEED_SAFE_THRESHOLD (25)
+
 //#define DEBUG
 
 const int frameReadyPin = A3;
@@ -18,19 +23,23 @@ unsigned int integrationTime = 0x4E24;
 BTDevice btDevice;
 OpMan mOpMan;
 
+WindSense mWindSense;
+
 void setup(){
   SPI.begin();
   I2c.begin();
   I2c.timeOut(10);
   Serial.begin(9600);
 
-  mOpMan.init();
-
+  mOpMan.init(); 
+  
 #ifdef DEBUG
   mOpMan.enableLimitSwitches();
 #endif
 
   array1.init(chipSelectPin, frameReadyPin);
+
+  mWindSense.init(WIND_SENSE_PIN, LOOP_MS);
 }
 
 void loop(){
@@ -44,19 +53,16 @@ void loop(){
   // Get latest bluetooth command
   command = btDevice.getCommand();
 
-  // TODO: If the wind exceeds the safe threshold, close
-
-  /////////////
+  // Debug: Print received command
   if (command != BT_COMMAND_INVALID)
   {
     Serial.print("Command received: "); Serial.println(command);
   }
-  ////////////
   
   // Close immediately if:
   // 1. The bluetooth command is BT_COMMAND_CLOSE
-  // 2. Wind sensor exceeds safe threshold (TODO)
-  if (command == BT_COMMAND_CLOSE)
+  // 2. Wind sensor exceeds safe threshold
+  if ((command == BT_COMMAND_CLOSE) || (mWindSense.getWindSpeed() > WIND_SPEED_SAFE_THRESHOLD))
   {
     mOpMan.emergencyClose();
   }
