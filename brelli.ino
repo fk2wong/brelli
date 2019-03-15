@@ -1,13 +1,13 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include "OpMan.h"
 #include "LimitSwitch.h"
 #include "PhotodiodeArray.h"
 #include "Motor.h"
+#include <I2C.h>
 
 #define LOOP_MS (5)
 #define PRINT_VALUES
-#define DEBUG
+//#define DEBUG
 
 const int frameReadyPin = A3;
 const int chipSelectPin = 10;
@@ -20,7 +20,8 @@ OpMan mOpMan;
 
 void setup(){
   SPI.begin();
-  Wire.begin();
+  I2c.begin();
+  I2c.timeOut(10);
   Serial.begin(9600);
 
   mOpMan.init();
@@ -44,6 +45,13 @@ void loop(){
   command = btDevice.getCommand();
 
   // TODO: If the wind exceeds the safe threshold, close
+
+  /////////////
+  if (command != BT_COMMAND_INVALID)
+  {
+    Serial.print("Command received: "); Serial.println(command);
+  }
+  ////////////
   
   // Close immediately if:
   // 1. The bluetooth command is BT_COMMAND_CLOSE

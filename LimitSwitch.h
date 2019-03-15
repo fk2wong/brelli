@@ -28,5 +28,7 @@ public:
   void init();
   void enableSwitches();
   void pollSwitchStates(LimitSwitchState &openState, LimitSwitchState &tiltState);
+  void pollSwitchStates(LimitSwitchState &openState, LimitSwitchState &tiltState, bool useHysteresis);
   void disableSwitches();
+  double getLastValue();
 };

@@ -20,9 +20,8 @@ void Motor::drive(int magnitude)
   
   magnitude      = max(min(magnitude, MOTOR_MAX), MOTOR_MIN);
   mappedValue    = map(abs(magnitude), 0, 100, 0, 255);
-  directionValue = (magnitude > 0) ? 1 : 0;
+  directionValue = (magnitude > 0) ? 0 : 1;
 
-  Serial.print("Dir: "); Serial.print(directionValue); Serial.print(" Val: "); Serial.println(mappedValue);
   digitalWrite(_directionPin, directionValue);
   analogWrite(_pwmPin, mappedValue);
 }
