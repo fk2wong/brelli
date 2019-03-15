@@ -58,7 +58,7 @@ void PhotodiodeArray::startIntegration(uint16_t integrationTime)
 // -2 = integration done, frame is not ready
 // >=0 = valid centroid value
 // -3 = packet corrupted
-int16_t PhotodiodeArray::getCentroidReading(uint16_t integrationTime, bool startNewFrame)
+int16_t PhotodiodeArray::getCentroidReading(uint32_t& errorSum, uint16_t integrationTime, bool startNewFrame)
 {
   if (!_readingStarted)
   {
@@ -117,11 +117,11 @@ int16_t PhotodiodeArray::getCentroidReading(uint16_t integrationTime, bool start
     return -3;
   }
 
-  return (int16_t) calculateCentroid(&rxBuffer[MLX75306_READOUT_HEADER_SIZE], (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1));
+  return (int16_t) calculateCentroid(&rxBuffer[MLX75306_READOUT_HEADER_SIZE], (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1), errorSum);
 }
 
 // Calculate centroid
-uint16_t PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], uint16_t length)
+uint16_t PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], uint16_t length, int32_t& errorSum)
 {
   uint32_t moments = 0;
   uint32_t area = 0;
@@ -129,6 +129,15 @@ uint16_t PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], uint16_t length)
   {
     moments += ((uint16_t) rxBuffer[it - 1]) * it;
     area += rxBuffer[it - 1];
+  }
+
+  int32_t average = area / length;
+  
+  errorSum = 0;
+  
+  for (uint16_t it = 0; it < length; it++)
+  {
+    errorSum += abs(average - (int32_t) rxBuffer[it]);
   }
 
   return (moments / area);
@@ -148,24 +157,4 @@ uint16_t PhotodiodeArray::calculateCRC(uint8_t rxBuffer[], uint16_t length)
   }
   
   return crc;
-}
-
-// Only call if centroid reading was received
-int32_t PhotodiodeArray::getErrorSum(uint8_t rxBuffer[], uint16_t length)
-{
-  uint32_t sumVals = 0;
-  for (uint16_t it = 1; it <= length; it++)
-  {
-    sumVals += rxBuffer[it - 1];
-  }
-
-  int32_t average = sumVals / length;
-  int32_t errorSum = 0;
-  
-  for (uint16_t it = 0; it < length; it++)
-  {
-    errorSum += abs(average - (int32_t) rxBuffer[it]);
-  }
-
-  return errorSum;
 }
