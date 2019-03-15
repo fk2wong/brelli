@@ -57,6 +57,7 @@ void PhotodiodeArray::startIntegration(uint16_t integrationTime)
 // -1 = integration started
 // -2 = integration done, frame is not ready
 // >=0 = valid centroid value
+// -3 = packet corrupted
 int16_t PhotodiodeArray::getCentroidReading(uint16_t integrationTime, bool startNewFrame)
 {
   if (!_readingStarted)
@@ -108,6 +109,14 @@ int16_t PhotodiodeArray::getCentroidReading(uint16_t integrationTime, bool start
   }
   Serial.println();*/
 
+  uint16_t calculatedCRC = calculateCRC(rxBuffer, (MLX75306_READOUT_SIZE - 2));
+  uint16_t readCRC = (rxBuffer[MLX75306_READOUT_SIZE - 2] << 8) | (rxBuffer[MLX75306_READOUT_SIZE - 1]);
+
+  if (calculatedCRC != readCRC) 
+  {
+    return -3;
+  }
+
   return (int16_t) calculateCentroid(&rxBuffer[MLX75306_READOUT_HEADER_SIZE], (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1));
 }
 
@@ -123,4 +132,20 @@ uint16_t PhotodiodeArray::calculateCentroid(uint8_t rxBuffer[], uint16_t length)
   }
 
   return (moments / area);
+}
+
+uint16_t PhotodiodeArray::calculateCRC(uint8_t rxBuffer[], uint16_t length)
+{    
+  uint8_t x;
+  uint16_t crc = 0x1D0F;
+  
+  uint8_t* dataPtr = rxBuffer;
+
+  while (length--){
+    x = crc >> 8 ^ *dataPtr++;
+    x ^= x >> 4;
+    crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x << 5)) ^ ((uint16_t) x);
+  }
+  
+  return crc;
 }

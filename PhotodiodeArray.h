@@ -15,6 +15,8 @@
 #define MLX75306_ARRAY_END			        143
 #define MLX75306_READOUT_SIZE		        (MLX75306_ARRAY_END - MLX75306_ARRAY_BEGIN + 1) + MLX75306_READOUT_HEADER_SIZE + MLX75306_READOUT_FOOTER_SIZE
 
+#define MLX75306_CRC16                  ((1 << 16) | (1 << 12) | (1 << 5) | (1 << 0)) 
+
 class PhotodiodeArray
 {
     public:
@@ -30,5 +32,5 @@ class PhotodiodeArray
       bool _readingStarted;
       
       uint16_t calculateCentroid(uint8_t rxBuffer[], uint16_t length);
-
+      uint16_t calculateCRC(uint8_t rxBuffer[], uint16_t length);
 };
