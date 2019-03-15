@@ -24,6 +24,8 @@ class PhotodiodeArray
       void init(int16_t chipSelectPin, int16_t frameReadyPin);
       int16_t getCentroidReading(uint16_t integrationTime, bool startIntegration);
       void startIntegration(uint16_t integrationTime);
+      int32_t getErrorSum(uint8_t rxBuffer[], uint16_t length);
+
 
     private:
       int16_t _frameReadyPin;

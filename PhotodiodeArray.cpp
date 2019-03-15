@@ -149,3 +149,23 @@ uint16_t PhotodiodeArray::calculateCRC(uint8_t rxBuffer[], uint16_t length)
   
   return crc;
 }
+
+// Only call if centroid reading was received
+int32_t PhotodiodeArray::getErrorSum(uint8_t rxBuffer[], uint16_t length)
+{
+  uint32_t sumVals = 0;
+  for (uint16_t it = 1; it <= length; it++)
+  {
+    sumVals += rxBuffer[it - 1];
+  }
+
+  int32_t average = sumVals / length;
+  int32_t errorSum = 0;
+  
+  for (uint16_t it = 0; it < length; it++)
+  {
+    errorSum += abs(average - (int32_t) rxBuffer[it]);
+  }
+
+  return errorSum;
+}
